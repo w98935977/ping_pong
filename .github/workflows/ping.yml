@@ -1,0 +1,26 @@
+name: Ping and Notify
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # 每 5 分鐘
+  workflow_dispatch:  # 也可以手動觸發
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping your site
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://my-line-bot-cojh.onrender.com)
+          echo "Status code: $RESPONSE"
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "Service is down, sending email..."
+            echo -e "Subject: ⚠️ LINE Bot Down!\n\nSite responded with $RESPONSE" | \
+            sendmail -S smtp.gmail.com:587 -au"$EMAIL_USER" -ap"$EMAIL_PASS" -f"$EMAIL_USER" "$EMAIL_TO"
+          else
+            echo "✅ Service is up"
+          fi
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
