@@ -15,24 +15,40 @@ jobs:
         run: |
           # 取得今天 UTC 日付
           TODAY=$(date -u +"%Y-%m-%d")
+
           # 呼叫 GitHub API 抓 ping-and-notify workflow 的 runs
           RESP=$(curl -s \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ping-and-notify.yml/runs?per_page=100")
           echo "$RESP" > runs.json
-          # 使用 jq 統計今天的 runs
-          TOTAL=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\"))] | length" runs.json)
-          SUCCESS=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"success\")] | length" runs.json)
-          FAIL=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"failure\")] | length" runs.json)
-          echo "::set-output name=total::$TOTAL"
-          echo "::set-output name=success::$SUCCESS"
-          echo "::set-output name=fail::$FAIL"
+
+          # 使用 jq 統計今天的 runs（含 null 安全檢查）
+          TOTAL=$(jq --arg today "$TODAY" '
+            if (.workflow_runs | type) == "array" then
+              [.workflow_runs[] | select(.created_at | startswith($today))] | length
+            else 0 end' runs.json)
+
+          SUCCESS=$(jq --arg today "$TODAY" '
+            if (.workflow_runs | type) == "array" then
+              [.workflow_runs[] | select(.created_at | startswith($today) and .conclusion == "success")] | length
+            else 0 end' runs.json)
+
+          FAIL=$(jq --arg today "$TODAY" '
+            if (.workflow_runs | type) == "array" then
+              [.workflow_runs[] | select(.created_at | startswith($today) and .conclusion == "failure")] | length
+            else 0 end' runs.json)
+
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "success=$SUCCESS" >> "$GITHUB_OUTPUT"
+          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+
       - name: Print report
         run: |
           echo "Ping Report for $(date -u +"%Y-%m-%d") (UTC+8):"
           echo "• Total runs: ${{ steps.get_runs.outputs.total }}"
           echo "• Success:    ${{ steps.get_runs.outputs.success }}"
           echo "• Failures:   ${{ steps.get_runs.outputs.fail }}"
+
       - name: Send report email
         run: |
           SUBJECT="Daily Ping Report for $(date -u +"%Y-%m-%d")"
