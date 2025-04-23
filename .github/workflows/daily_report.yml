@@ -64,11 +64,11 @@ jobs:
           echo "account default : gmail" >> ~/.msmtprc
           chmod 600 ~/.msmtprc
 
-          cat report.md | msmtp --debug --from=default -t <<EOM
-To: $EMAIL_TO
-From: $EMAIL_USER
-Subject: Daily Ping Report - $(date -u +"%Y-%m-%d")
-Content-Type: text/plain
-
-$(cat report.md)
-EOM
+          {
+            echo "To: $EMAIL_TO"
+            echo "From: $EMAIL_USER"
+            echo "Subject: Daily Ping Report - $(date -u +"%Y-%m-%d")"
+            echo "Content-Type: text/plain"
+            echo ""
+            cat report.md
+          } | msmtp --debug --from=default -t
