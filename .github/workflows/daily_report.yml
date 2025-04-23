@@ -2,7 +2,7 @@ name: Daily Ping Report
 
 on:
   schedule:
-    - cron: "0 12 * * *"  # 台灣時間 20:00
+    - cron: "0 12 * * *" # 台灣時間 20:00
   workflow_dispatch:
 
 jobs:
@@ -20,18 +20,19 @@ jobs:
         run: |
           TODAY=$(date -u +"%Y-%m-%d")
           echo "🔍 Today is: $TODAY (UTC)"
+
           RESP=$(curl -s \
             -H "Authorization: token ${{ secrets.REPORT_PAT }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/157651133/runs?per_page=100")
           echo "$RESP" > runs.json
 
-          TOTAL=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'"))] | length' runs.json)
-          SUCCESS=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success")] | length' runs.json)
-          FAIL=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="failure")] | length' runs.json)
+          TOTAL=$(jq '[.workflow_runs[] | select(type=="object") | select(.created_at | strings | startswith("'"$TODAY"'"))] | length' runs.json)
+          SUCCESS=$(jq '[.workflow_runs[] | select(type=="object") | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success")] | length' runs.json)
+          FAIL=$(jq '[.workflow_runs[] | select(type=="object") | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="failure")] | length' runs.json)
 
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
-          echo "success=$SUCCESS" >> $GITHUB_OUTPUT
-          echo "fail=$FAIL" >> $GITHUB_OUTPUT
+          echo "::set-output name=total::$TOTAL"
+          echo "::set-output name=success::$SUCCESS"
+          echo "::set-output name=fail::$FAIL"
 
           echo "📅 Ping Report for $TODAY (UTC+8):" > report.md
           echo "- Total runs: $TOTAL" >> report.md
@@ -39,34 +40,35 @@ jobs:
           echo "- Failures:   $FAIL" >> report.md
           echo "" >> report.md
           echo "✅ Success runs:" >> report.md
-          jq -r '.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success") | .html_url' runs.json >> report.md
+          jq -r '.workflow_runs[] | select(type=="object") | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success") | .html_url' runs.json >> report.md
 
       - name: Show report
         run: cat report.md
 
       - name: Email report
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
-          cat <<EOF > ~/.msmtprc
-defaults
-auth           on
-tls            on
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
-account        gmail
-host           smtp.gmail.com
-port           587
-from           ${{ secrets.EMAIL_USER }}
-user           ${{ secrets.EMAIL_USER }}
-password       ${{ secrets.EMAIL_PASS }}
-account default : gmail
-EOF
-
+          echo "defaults" > ~/.msmtprc
+          echo "auth           on" >> ~/.msmtprc
+          echo "tls            on" >> ~/.msmtprc
+          echo "tls_trust_file /etc/ssl/certs/ca-certificates.crt" >> ~/.msmtprc
+          echo "account        gmail" >> ~/.msmtprc
+          echo "host           smtp.gmail.com" >> ~/.msmtprc
+          echo "port           587" >> ~/.msmtprc
+          echo "from           $EMAIL_USER" >> ~/.msmtprc
+          echo "user           $EMAIL_USER" >> ~/.msmtprc
+          echo "password       $EMAIL_PASS" >> ~/.msmtprc
+          echo "account default : gmail" >> ~/.msmtprc
           chmod 600 ~/.msmtprc
 
-          cat <<EOF | msmtp --debug --from=default -t
-To: ${{ secrets.EMAIL_TO }}
-From: ${{ secrets.EMAIL_USER }}
+          cat report.md | msmtp --debug --from=default -t <<EOM
+To: $EMAIL_TO
+From: $EMAIL_USER
 Subject: Daily Ping Report - $(date -u +"%Y-%m-%d")
 Content-Type: text/plain
 
 $(cat report.md)
-EOF
+EOM
