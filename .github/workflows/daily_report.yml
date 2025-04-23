@@ -2,63 +2,75 @@ name: Daily Ping Report
 
 on:
   schedule:
-    # 台灣時間每天 20:00 → UTC 每天 12:00
-    - cron: "0 12 * * *"
+    - cron: "0 12 * * *"  # 台灣時間 20:00
   workflow_dispatch:
 
 jobs:
   report:
     runs-on: ubuntu-latest
+
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq msmtp
+
       - name: Fetch today's workflow runs
         id: get_runs
         run: |
-          # 取得今天 UTC 日付
           TODAY=$(date -u +"%Y-%m-%d")
-
-          # 呼叫 GitHub API 抓 ping-and-notify workflow 的 runs
+          echo "🔍 Today is: $TODAY (UTC)"
           RESP=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ping-and-notify.yml/runs?per_page=100")
+            -H "Authorization: token ${{ secrets.REPORT_PAT }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/157651133/runs?per_page=100")
           echo "$RESP" > runs.json
 
-          # 使用 jq 統計今天的 runs（含 null 安全檢查）
-          TOTAL=$(jq --arg today "$TODAY" '
-            if (.workflow_runs | type) == "array" then
-              [.workflow_runs[] | select(.created_at | startswith($today))] | length
-            else 0 end' runs.json)
+          TOTAL=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'"))] | length' runs.json)
+          SUCCESS=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success")] | length' runs.json)
+          FAIL=$(jq '[.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="failure")] | length' runs.json)
 
-          SUCCESS=$(jq --arg today "$TODAY" '
-            if (.workflow_runs | type) == "array" then
-              [.workflow_runs[] | select(.created_at | startswith($today) and .conclusion == "success")] | length
-            else 0 end' runs.json)
+          echo "::set-output name=total::$TOTAL"
+          echo "::set-output name=success::$SUCCESS"
+          echo "::set-output name=fail::$FAIL"
 
-          FAIL=$(jq --arg today "$TODAY" '
-            if (.workflow_runs | type) == "array" then
-              [.workflow_runs[] | select(.created_at | startswith($today) and .conclusion == "failure")] | length
-            else 0 end' runs.json)
+          # 建立 Markdown 報告檔
+          echo "📅 Ping Report for $TODAY (UTC+8):" > report.md
+          echo "- Total runs: $TOTAL" >> report.md
+          echo "- Success:    $SUCCESS" >> report.md
+          echo "- Failures:   $FAIL" >> report.md
 
-          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-          echo "success=$SUCCESS" >> "$GITHUB_OUTPUT"
-          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+          echo "" >> report.md
+          echo "✅ Success runs:" >> report.md
+          jq -r '.workflow_runs[] | select(.created_at | strings | startswith("'"$TODAY"'") and .conclusion=="success") | .html_url' runs.json >> report.md
 
-      - name: Print report
+      - name: Show report
+        run: cat report.md
+
+      - name: Email report
         run: |
-          echo "Ping Report for $(date -u +"%Y-%m-%d") (UTC+8):"
-          echo "• Total runs: ${{ steps.get_runs.outputs.total }}"
-          echo "• Success:    ${{ steps.get_runs.outputs.success }}"
-          echo "• Failures:   ${{ steps.get_runs.outputs.fail }}"
+          cat <<EOF > ~/.msmtprc
+          defaults
+          auth           on
+          tls            on
+          tls_trust_file /etc/ssl/certs/ca-certificates.crt
+          account        gmail
+          host           smtp.gmail.com
+          port           587
+          from           ${{ secrets.EMAIL_USER }}
+          user           ${{ secrets.EMAIL_USER }}
+          password       ${{ secrets.EMAIL_PASS }}
+          account default : gmail
+EOF
 
-      - name: Send report email
-        run: |
-          SUBJECT="Daily Ping Report for $(date -u +"%Y-%m-%d")"
-          BODY="Total runs: ${{ steps.get_runs.outputs.total }}\nSuccess: ${{ steps.get_runs.outputs.success }}\nFailures: ${{ steps.get_runs.outputs.fail }}"
-          echo -e "Subject: $SUBJECT\n\n$BODY" | \
-            sendmail -S smtp.gmail.com:587 \
-                     -au"$EMAIL_USER" \
-                     -ap"$EMAIL_PASS" \
-                     -f"$EMAIL_USER" \
-                     "$EMAIL_TO"
+          chmod 600 ~/.msmtprc
+          msmtp --debug --from=default -t <<EOF
+          To: ${{ secrets.EMAIL_TO }}
+          From: ${{ secrets.EMAIL_USER }}
+          Subject: Daily Ping Report - $TODAY
+          Content-Type: text/plain
+
+          $(cat report.md)
+EOF
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
