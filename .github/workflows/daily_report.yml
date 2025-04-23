@@ -21,9 +21,9 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ping-and-notify.yml/runs?per_page=100")
           echo "$RESP" > runs.json
           # 使用 jq 統計今天的 runs
-          TOTAL=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\"))] | length" runs.json)
-          SUCCESS=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"success\")] | length" runs.json)
-          FAIL=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"failure\")] | length" runs.json)
+          TOTAL=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\"))] | length" runs.json)
+          SUCCESS=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"success\")] | length" runs.json)
+          FAIL=$(jq "[.workflow_runs?[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"failure\")] | length" runs.json)
           echo "::set-output name=total::$TOTAL"
           echo "::set-output name=success::$SUCCESS"
           echo "::set-output name=fail::$FAIL"
