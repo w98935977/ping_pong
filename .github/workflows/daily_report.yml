@@ -49,27 +49,27 @@ jobs:
       - name: Email report
         run: |
           cat <<EOF > ~/.msmtprc
-          defaults
-          auth           on
-          tls            on
-          tls_trust_file /etc/ssl/certs/ca-certificates.crt
-          account        gmail
-          host           smtp.gmail.com
-          port           587
-          from           ${{ secrets.EMAIL_USER }}
-          user           ${{ secrets.EMAIL_USER }}
-          password       ${{ secrets.EMAIL_PASS }}
-          account default : gmail
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+account        gmail
+host           smtp.gmail.com
+port           587
+from           ${{ secrets.EMAIL_USER }}
+user           ${{ secrets.EMAIL_USER }}
+password       ${{ secrets.EMAIL_PASS }}
+account default : gmail
 EOF
 
           chmod 600 ~/.msmtprc
           msmtp --debug --from=default -t <<EOF
-          To: ${{ secrets.EMAIL_TO }}
-          From: ${{ secrets.EMAIL_USER }}
-          Subject: Daily Ping Report - $TODAY
-          Content-Type: text/plain
+To: ${{ secrets.EMAIL_TO }}
+From: ${{ secrets.EMAIL_USER }}
+Subject: Daily Ping Report - $TODAY
+Content-Type: text/plain
 
-          $(cat report.md)
+$(cat report.md)
 EOF
 
         env:
