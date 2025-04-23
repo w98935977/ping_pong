@@ -59,7 +59,7 @@ jobs:
           from           ${{ secrets.EMAIL_USER }}
           user           ${{ secrets.EMAIL_USER }}
           password       ${{ secrets.EMAIL_PASS }}
-          account default gmail
+          account default : gmail
 EOF
 
           chmod 600 ~/.msmtprc
@@ -71,6 +71,7 @@ EOF
 
           $(cat report.md)
 EOF
+
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
