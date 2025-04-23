@@ -1,0 +1,49 @@
+name: Daily Ping Report
+
+on:
+  schedule:
+    # 台灣時間每天 20:00 → UTC 每天 12:00
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch today's workflow runs
+        id: get_runs
+        run: |
+          # 取得今天 UTC 日付
+          TODAY=$(date -u +"%Y-%m-%d")
+          # 呼叫 GitHub API 抓 ping-and-notify workflow 的 runs
+          RESP=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ping-and-notify.yml/runs?per_page=100")
+          echo "$RESP" > runs.json
+          # 使用 jq 統計今天的 runs
+          TOTAL=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\"))] | length" runs.json)
+          SUCCESS=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"success\")] | length" runs.json)
+          FAIL=$(jq "[.workflow_runs[] | select(.created_at|startswith(\"$TODAY\") and .conclusion==\"failure\")] | length" runs.json)
+          echo "::set-output name=total::$TOTAL"
+          echo "::set-output name=success::$SUCCESS"
+          echo "::set-output name=fail::$FAIL"
+      - name: Print report
+        run: |
+          echo "Ping Report for $(date -u +"%Y-%m-%d") (UTC+8):"
+          echo "• Total runs: ${{ steps.get_runs.outputs.total }}"
+          echo "• Success:    ${{ steps.get_runs.outputs.success }}"
+          echo "• Failures:   ${{ steps.get_runs.outputs.fail }}"
+      - name: Send report email
+        run: |
+          SUBJECT="Daily Ping Report for $(date -u +"%Y-%m-%d")"
+          BODY="Total runs: ${{ steps.get_runs.outputs.total }}\nSuccess: ${{ steps.get_runs.outputs.success }}\nFailures: ${{ steps.get_runs.outputs.fail }}"
+          echo -e "Subject: $SUBJECT\n\n$BODY" | \
+            sendmail -S smtp.gmail.com:587 \
+                     -au"$EMAIL_USER" \
+                     -ap"$EMAIL_PASS" \
+                     -f"$EMAIL_USER" \
+                     "$EMAIL_TO"
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}

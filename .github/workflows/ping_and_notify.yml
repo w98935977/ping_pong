@@ -9,6 +9,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Print Taiwan time
+        run: date -u +"%Y-%m-%d %H:%M:%S (Taiwan)" -d "+8 hours"
       - name: Ping your site
         run: |
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://my-line-bot-cojh.onrender.com)
