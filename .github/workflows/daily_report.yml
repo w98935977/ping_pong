@@ -84,8 +84,9 @@ jobs:
           echo "</thead>" >> report.html
           echo "<tbody>" >> report.html
 
+          # 按時間排序並生成表格
           jq -r '
-            .[] |
+            sort_by(.run_started_at)[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
