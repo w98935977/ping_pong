@@ -109,10 +109,10 @@ jobs:
           # 修正統計數據
           BODY=$(sed -e 's/🟢/<span style="color:#2ecc71;font-weight:bold;">●<\/span>/g' \
                      -e 's/🔴/<span style="color:#e74c3c;font-weight:bold;">●<\/span>/g' \
-                     -e 's/# \(.*\)/<h2 style="color:#34495e; font-size:20px; margin-bottom:8px;">\1<\/h2>/g' \
-                     -e 's/### \(.*\)/<h3 style="color:#2c3e50; font-size:16px; margin-bottom:6px;">\1<\/h3>/g' \
-                     -e 's/|\(.*\)|\(.*\)|\(.*\)|\(.*\)|/<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;"><span>\1<\/span><span>\2<\/span><span>\3<\/span><span>\4<\/span><\/div>/g' \
-                     report.md)
+                     -e 's/<h1>/<h1 style="color:#34495e; font-size:24px; margin-bottom:16px;">/g' \
+                     -e 's/<h2>/<h2 style="color:#2c3e50; font-size:20px; margin-bottom:12px;">/g' \
+                     -e 's/<p>/<p style="margin:8px 0;">/g' \
+                     report.html)
 
           {
             echo "To: $EMAIL_TO"
