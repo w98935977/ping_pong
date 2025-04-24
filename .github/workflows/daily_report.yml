@@ -88,7 +88,10 @@ jobs:
           echo "<tbody>" >> report.html
 
           jq -r '
-            sort_by(.run_started_at) | reverse | map(select(.run_started_at | fromdateiso8601 + (8*3600) >= (now | floor - 86400)))[] |
+            sort_by(.run_started_at) | reverse | map(select(
+              (.run_started_at | fromdateiso8601 + (8*3600)) >= (now | floor - 86400 + (20*3600)) and
+              (.run_started_at | fromdateiso8601 + (8*3600)) < (now | floor + (20*3600))
+            ))[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
