@@ -57,9 +57,9 @@ jobs:
       - name: Generate report
         run: |
           # 精確統計計算
-          TOTAL=$(jq '.workflow_runs | length' runs.json)
-          SUCCESS=$(jq '[.workflow_runs[] | select(.conclusion == "success")] | length' runs.json)
-          FAIL=$(jq '[.workflow_runs[] | select(.conclusion == "failure")] | length' runs.json)
+          TOTAL=$(jq 'length' runs.json)
+          SUCCESS=$(jq '[.[] | select(.conclusion == "success")] | length' runs.json)
+          FAIL=$(jq '[.[] | select(.conclusion == "failure")] | length' runs.json)
 
           # 固定擷取時間段（台灣時間晚上 20:00 為分界）
           START_TIME=$(date -u -d "yesterday 12:00" +"%Y-%m-%d 20:00")
@@ -85,7 +85,7 @@ jobs:
           echo "<tbody>" >> report.html
 
           jq -r '
-            .workflow_runs[] |
+            .[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
