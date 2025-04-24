@@ -45,13 +45,13 @@ jobs:
           SUCCESS=$(jq '[.workflow_runs[] | select(.conclusion == "success")] | length' runs.json)
           FAIL=$(jq '[.workflow_runs[] | select(.conclusion == "failure")] | length' runs.json)
 
-          # 擷取時間段
-          START_TIME=$(date -u -d "1 day ago" +"%Y-%m-%d %H:%M")
-          END_TIME=$(date -u +"%Y-%m-%d %H:%M")
+          # 擷取時間段（轉換為台灣時間）
+          START_TIME=$(date -u -d "1 day ago +8 hours" +"%Y-%m-%d %H:%M")
+          END_TIME=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")
 
           # 報告標題與統計摘要
-          echo "# 📊 Ping 執行報告 - $(date -u +"%Y-%m-%d")" > report.md
-          echo "擷取時間段：${START_TIME} 至 ${END_TIME} (UTC)" >> report.md
+          echo "# 📊 Ping 執行報告 - $(date -u -d "+8 hours" +"%Y-%m-%d")" > report.md
+          echo "擷取時間段：${START_TIME} 至 ${END_TIME} (台灣時間)" >> report.md
           echo "" >> report.md
           echo "**成功：${SUCCESS} 次**  " >> report.md
           echo "**失敗：${FAIL} 次**  " >> report.md
@@ -61,14 +61,14 @@ jobs:
           # 完整記錄
           echo "### 查看完整記錄 (共 ${TOTAL} 筆)" >> report.md
           echo "" >> report.md
-          echo "| 編號 | 時間 | 狀態 |" >> report.md
-          echo "|------|------|------|" >> report.md
+          echo "| 編號 | 時間 (台灣時間) | 狀態 |" >> report.md
+          echo "|------|-----------------|------|" >> report.md
 
           jq -r '
             .workflow_runs[] |
             [
               "#\(.run_number)",
-              (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%H:%M")),
+              (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
               (if .conclusion == "success" then "🟢 成功" else "🔴 失敗" end),
               (if .conclusion == "failure" then "[連結](\(.html_url))" else "" end)
             ] | @tsv
