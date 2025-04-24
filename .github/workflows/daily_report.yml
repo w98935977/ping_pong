@@ -103,6 +103,7 @@ jobs:
           echo "password $EMAIL_PASS" >> ~/.msmtprc
           echo "tls on" >> ~/.msmtprc
           echo "tls_starttls on" >> ~/.msmtprc
+          echo "from $EMAIL_USER" >> ~/.msmtprc  # 添加 envelope-from 地址
           echo "logfile ~/.msmtp.log" >> ~/.msmtprc
           chmod 600 ~/.msmtprc
 
