@@ -45,48 +45,42 @@ jobs:
           SUCCESS=$(jq '[.workflow_runs[] | select(.conclusion == "success")] | length' runs.json)
           FAIL=$(jq '[.workflow_runs[] | select(.conclusion == "failure")] | length' runs.json)
 
-          # 手機優先報告格式
-          echo "# 📱 Ping執行報告 - $(date -u +"%Y-%m-%d")" > report.md
-          echo "**🟢 成功：$SUCCESS** | **🔴 失敗：$FAIL** | **總數：$TOTAL**" >> report.md
+          # 擷取時間段
+          START_TIME=$(date -u -d "1 day ago" +"%Y-%m-%d %H:%M")
+          END_TIME=$(date -u +"%Y-%m-%d %H:%M")
+
+          # 報告標題與統計摘要
+          echo "# 📊 Ping 執行報告 - $(date -u +"%Y-%m-%d")" > report.md
+          echo "擷取時間段：${START_TIME} 至 ${END_TIME} (UTC)" >> report.md
+          echo "" >> report.md
+          echo "**成功：${SUCCESS} 次**" >> report.md
+          echo "**失敗：${FAIL} 次**" >> report.md
+          echo "**總執行：${TOTAL} 次**" >> report.md
           echo "" >> report.md
 
-          # 響應式表格 (移動端自動換行)
-          echo "### 最近5次執行" >> report.md
-          echo "| 編號 | 時間 | 狀態 | 用時 |" >> report.md
-          echo "|------|------|:----:|-----:|" >> report.md
-          
+          # 完整記錄
+          echo "### 查看完整記錄 (共 ${TOTAL} 筆)" >> report.md
+          echo "" >> report.md
+
           jq -r '
-            .workflow_runs[0:5][] |  # 只顯示最新5筆
+            .workflow_runs[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%H:%M")),
-              (if .conclusion == "success" then "🟢" else "🔴" end),
+              (if .conclusion == "success" then "🟢 成功" else "🔴 失敗" end),
               (
                 ((.updated_at | fromdateiso8601) - (.run_started_at | fromdateiso8601)) |
-                if . >= 60 then "\((. /60)|floor)分" else "\(.)秒" end
-              )
-            ] | join("|")
-          ' runs.json | while read -r line; do
-            echo "|$line|" >> report.md
+                if . >= 60 then "\((. /60)|floor) 分" else "\(.) 秒" end
+              ),
+              (if .conclusion == "failure" then "連結)" else "" end)
+            ] | @tsv
+          ' runs.json | while IFS=$'\t' read -r run_number time status duration link; do
+            if [ -n "$link" ]; then
+              echo "- ${run_number} | ${time} | ${status} | ${duration} | ${link}" >> report.md
+            else
+              echo "- ${run_number} | ${time} | ${status} | ${duration}" >> report.md
+            fi
           done
-
-          # 完整記錄折疊區
-          echo "" >> report.md
-          echo "<details>" >> report.md
-          echo "<summary>查看完整記錄 (共$TOTAL筆)</summary>" >> report.md
-          echo "" >> report.md
-          
-          jq -r '
-            .workflow_runs[] |
-            "| \(.run_number) | \(.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%H:%M")) | \(
-              if .conclusion == "success" then "🟢" else "🔴" end
-            ) | \(
-              ((.updated_at | fromdateiso8601) - (.run_started_at | fromdateiso8601)) |
-              if . >= 60 then "\((. /60)|floor)分" else "\(.)秒" end
-            ) | [連結](\(.html_url)) |"
-          ' runs.json >> report.md
-          
-          echo "</details>" >> report.md
 
       - name: Send email
         env:
