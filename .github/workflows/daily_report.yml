@@ -56,18 +56,24 @@ jobs:
 
       - name: Generate report
         run: |
-          # 精確統計計算
+          # 計算台灣時間現在、今天20:00、昨天20:00
+          TW_NOW=$(date -u -d '+8 hours' +%s)
+          TW_TODAY_20=$(date -u -d '20:00 +8 hours' +%s)
+          if [ "$TW_NOW" -lt "$TW_TODAY_20" ]; then
+            TW_YESTERDAY_20=$(date -u -d 'yesterday 20:00 +8 hours' +%s)
+          else
+            TW_YESTERDAY_20=$TW_TODAY_20
+            TW_TODAY_20=$(date -u -d 'tomorrow 20:00 +8 hours' +%s)
+          fi
+
+          # 統計
           TOTAL=$(jq 'length' runs.json)
           SUCCESS=$(jq '[.[] | select(.conclusion == "success")] | length' runs.json)
           FAIL=$(jq '[.[] | select(.conclusion == "failure")] | length' runs.json)
 
-          # 固定擷取時間段（台灣時間晚上 20:00 為分界）
-          START_TIME=$(date -u -d "yesterday 12:00" +"%Y-%m-%d 20:00")
-          END_TIME=$(date -u -d "today 12:00" +"%Y-%m-%d 20:00")
-
           # 報告標題與統計摘要
           echo "<h1>📊 Ping 執行報告 - $(date -u -d '+8 hours' +'%Y-%m-%d')</h1>" > report.html
-          echo "<p>擷取時間段：${START_TIME} 至 ${END_TIME} (台灣時間)</p>" >> report.html
+          echo "<p>擷取時間段：$(date -d @$TW_YESTERDAY_20 +'%Y-%m-%d %H:%M') 至 $(date -d @$TW_TODAY_20 +'%Y-%m-%d %H:%M') (台灣時間)</p>" >> report.html
           echo "<p><strong>成功：${SUCCESS} 次</strong></p>" >> report.html
           echo "<p><strong>失敗：${FAIL} 次</strong></p>" >> report.html
           echo "<p><strong>總執行：${TOTAL} 次</strong></p>" >> report.html
@@ -78,7 +84,7 @@ jobs:
             <a href='#' onclick='showYesterday(event)' style='color:#3498db;'>昨天的記錄</a>
           </p>" >> report.html
 
-          # 添加 JavaScript 和 CSS
+          # JS & CSS
           echo "<script>
             function showToday(e) {
               e.preventDefault();
@@ -102,20 +108,20 @@ jobs:
             th { background-color: #f2f2f2; }
           </style>" >> report.html
 
-          # 今天的記錄 (台灣時間今天 20:00 ~ 明天 20:00)
+          # 今天的記錄
           echo "<div id='today'>" >> report.html
           echo "<h2>今天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
           echo "<thead><tr><th>編號</th><th>時間 (台灣時間)</th><th>狀態</th></tr></thead>" >> report.html
           echo "<tbody>" >> report.html
 
-          jq -r '
+          jq -r --argjson start "$TW_YESTERDAY_20" --argjson end "$TW_TODAY_20" '
             sort_by(.run_started_at) | reverse |
             map(select(
               (.run_started_at|type == "string") and
               (.run_started_at|test("T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
-              ((.run_started_at | fromdateiso8601 + (8*3600)) >= ((now | strftime("%Y-%m-%d") | fromdate + (20*3600))) and
-               (.run_started_at | fromdateiso8601 + (8*3600)) < (((now | strftime("%Y-%m-%d") | fromdate + 86400) + (20*3600))))
+              ((.run_started_at | fromdateiso8601 + 8*3600) >= $start and
+               (.run_started_at | fromdateiso8601 + 8*3600) < $end)
             ))[] |
             [
               "#\(.run_number)",
@@ -133,20 +139,20 @@ jobs:
 
           echo "</tbody></table></div>" >> report.html
 
-          # 昨天的記錄 (台灣時間昨天 20:00 ~ 今天 20:00)
+          # 昨天的記錄
           echo "<div id='yesterday'>" >> report.html
           echo "<h2>昨天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
           echo "<thead><tr><th>編號</th><th>時間 (台灣時間)</th><th>狀態</th></tr></thead>" >> report.html
           echo "<tbody>" >> report.html
 
-          jq -r '
+          jq -r --argjson start "$(($TW_YESTERDAY_20-86400))" --argjson end "$TW_YESTERDAY_20" '
             sort_by(.run_started_at) | reverse |
             map(select(
               (.run_started_at|type == "string") and
               (.run_started_at|test("T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
-              ((.run_started_at | fromdateiso8601 + (8*3600)) >= (((now | strftime("%Y-%m-%d") | fromdate) - 86400 + (20*3600))) and
-               (.run_started_at | fromdateiso8601 + (8*3600)) < ((now | strftime("%Y-%m-%d") | fromdate + (20*3600))))
+              ((.run_started_at | fromdateiso8601 + 8*3600) >= $start and
+               (.run_started_at | fromdateiso8601 + 8*3600) < $end)
             ))[] |
             [
               "#\(.run_number)",
