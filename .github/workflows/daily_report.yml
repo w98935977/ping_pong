@@ -112,7 +112,8 @@ jobs:
           jq -r '
             sort_by(.run_started_at) | reverse |
             map(select(
-              (.run_started_at | test("T.*Z$")) and
+              (.run_started_at|type == "string") and
+              (.run_started_at|test("T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
               ((.run_started_at | fromdateiso8601 + (8*3600)) >= ((now | strftime("%Y-%m-%d") | fromdate + (20*3600))) and
                (.run_started_at | fromdateiso8601 + (8*3600)) < (((now | strftime("%Y-%m-%d") | fromdate + 86400) + (20*3600))))
             ))[] |
@@ -142,7 +143,8 @@ jobs:
           jq -r '
             sort_by(.run_started_at) | reverse |
             map(select(
-              (.run_started_at | test("T.*Z$")) and
+              (.run_started_at|type == "string") and
+              (.run_started_at|test("T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
               ((.run_started_at | fromdateiso8601 + (8*3600)) >= (((now | strftime("%Y-%m-%d") | fromdate) - 86400 + (20*3600))) and
                (.run_started_at | fromdateiso8601 + (8*3600)) < ((now | strftime("%Y-%m-%d") | fromdate + (20*3600))))
             ))[] |
