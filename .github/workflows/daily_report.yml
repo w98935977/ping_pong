@@ -72,8 +72,11 @@ jobs:
           echo "<p><strong>失敗：${FAIL} 次</strong></p>" >> report.html
           echo "<p><strong>總執行：${TOTAL} 次</strong></p>" >> report.html
 
-          # 完整記錄
-          echo "<h2>查看完整記錄 (共 ${TOTAL} 筆)</h2>" >> report.html
+          # 分頁連結
+          echo "<p><a href='#today'>今天</a> | <a href='#yesterday'>昨天</a></p>" >> report.html
+
+          # 今天的記錄
+          echo "<h2 id='today'>今天的記錄</h2>" >> report.html
           echo "<table style='width:100%; border-collapse:collapse; text-align:left; font-family:Arial, sans-serif;'>" >> report.html
           echo "<thead>" >> report.html
           echo "<tr style='background-color:#f2f2f2;'>" >> report.html
@@ -84,9 +87,39 @@ jobs:
           echo "</thead>" >> report.html
           echo "<tbody>" >> report.html
 
-          # 按時間排序並生成表格
           jq -r '
-            sort_by(.run_started_at)[] |
+            sort_by(.run_started_at) | reverse | map(select(.run_started_at | fromdateiso8601 + (8*3600) >= (now | floor - 86400)))[] |
+            [
+              "#\(.run_number)",
+              (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
+              (if .conclusion == "success" then "🟢 成功" else "🔴 失敗" end),
+              (if .conclusion == "failure" then "<a href=\"\(.html_url)\" style=\"color:#e74c3c;\">連結</a>" else "" end)
+            ] | @tsv
+          ' runs.json | while IFS=$'\t' read -r run_number time status link; do
+            echo "<tr>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${run_number}</td>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${time}</td>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${status} ${link}</td>" >> report.html
+            echo "</tr>" >> report.html
+          done
+
+          echo "</tbody>" >> report.html
+          echo "</table>" >> report.html
+
+          # 昨天的記錄
+          echo "<h2 id='yesterday'>昨天的記錄</h2>" >> report.html
+          echo "<table style='width:100%; border-collapse:collapse; text-align:left; font-family:Arial, sans-serif;'>" >> report.html
+          echo "<thead>" >> report.html
+          echo "<tr style='background-color:#f2f2f2;'>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>編號</th>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>時間 (台灣時間)</th>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>狀態</th>" >> report.html
+          echo "</tr>" >> report.html
+          echo "</thead>" >> report.html
+          echo "<tbody>" >> report.html
+
+          jq -r '
+            sort_by(.run_started_at) | reverse | map(select(.run_started_at | fromdateiso8601 + (8*3600) < (now | floor - 86400)))[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
