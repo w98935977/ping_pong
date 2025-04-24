@@ -78,38 +78,9 @@ jobs:
           echo "<p><strong>失敗：${FAIL} 次</strong></p>" >> report.html
           echo "<p><strong>總執行：${TOTAL} 次</strong></p>" >> report.html
 
-          # 分頁連結
-          echo "<p>
-            <a href='#' onclick='showToday(event)' style='color:#3498db;'>今天的記錄</a> |
-            <a href='#' onclick='showYesterday(event)' style='color:#3498db;'>昨天的記錄</a>
-          </p>" >> report.html
-
-          # JS & CSS
-          echo "<script>
-            function showToday(e) {
-              e.preventDefault();
-              document.getElementById('today').style.display = 'block';
-              document.getElementById('yesterday').style.display = 'none';
-            }
-            function showYesterday(e) {
-              e.preventDefault();
-              document.getElementById('today').style.display = 'none';
-              document.getElementById('yesterday').style.display = 'block';
-            }
-            window.onload = function() {
-              document.getElementById('today').style.display = 'block';
-              document.getElementById('yesterday').style.display = 'none';
-            };
-          </script>" >> report.html
-          echo "<style>
-            #yesterday { display: none; }
-            table { width: 100%; border-collapse: collapse; text-align: left; font-family: Arial, sans-serif; }
-            th, td { padding: 8px; border: 1px solid #ddd; }
-            th { background-color: #f2f2f2; }
-          </style>" >> report.html
+          echo "<hr>" >> report.html
 
           # 今天的記錄
-          echo "<div id='today'>" >> report.html
           echo "<h2>今天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
           echo "<thead><tr><th>編號</th><th>時間 (台灣時間)</th><th>狀態</th></tr></thead>" >> report.html
@@ -137,10 +108,9 @@ jobs:
             echo "</tr>" >> report.html
           done
 
-          echo "</tbody></table></div>" >> report.html
+          echo "</tbody></table>" >> report.html
 
           # 昨天的記錄
-          echo "<div id='yesterday'>" >> report.html
           echo "<h2>昨天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
           echo "<thead><tr><th>編號</th><th>時間 (台灣時間)</th><th>狀態</th></tr></thead>" >> report.html
@@ -168,7 +138,7 @@ jobs:
             echo "</tr>" >> report.html
           done
 
-          echo "</tbody></table></div>" >> report.html
+          echo "</tbody></table>" >> report.html
 
       - name: Send email
         env:
