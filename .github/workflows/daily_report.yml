@@ -66,25 +66,34 @@ jobs:
           END_TIME=$(date -u -d "today 12:00" +"%Y-%m-%d 20:00")
 
           # 報告標題與統計摘要
-          echo "<h1>📊 Ping 執行報告 - $(date -u -d "+8 hours" +"%Y-%m-%d")</h1>" > report.html
+          echo "<h1>📊 Ping 執行報告 - $(date -u -d '+8 hours' +'%Y-%m-%d')</h1>" > report.html
           echo "<p>擷取時間段：${START_TIME} 至 ${END_TIME} (台灣時間)</p>" >> report.html
           echo "<p><strong>成功：${SUCCESS} 次</strong></p>" >> report.html
           echo "<p><strong>失敗：${FAIL} 次</strong></p>" >> report.html
           echo "<p><strong>總執行：${TOTAL} 次</strong></p>" >> report.html
 
           # 分頁連結
-          echo "<p><a href='#' onclick='showToday()' style='color:#3498db;'>今天的記錄</a> | <a href='#' onclick='showYesterday()' style='color:#3498db;'>昨天的記錄</a></p>" >> report.html
+          echo "<p>
+            <a href='#' onclick='showToday(event)' style='color:#3498db;'>今天的記錄</a> |
+            <a href='#' onclick='showYesterday(event)' style='color:#3498db;'>昨天的記錄</a>
+          </p>" >> report.html
 
           # 添加 JavaScript 和 CSS
           echo "<script>
-            function showToday() {
+            function showToday(e) {
+              e.preventDefault();
               document.getElementById('today').style.display = 'block';
               document.getElementById('yesterday').style.display = 'none';
             }
-            function showYesterday() {
+            function showYesterday(e) {
+              e.preventDefault();
               document.getElementById('today').style.display = 'none';
               document.getElementById('yesterday').style.display = 'block';
             }
+            window.onload = function() {
+              document.getElementById('today').style.display = 'block';
+              document.getElementById('yesterday').style.display = 'none';
+            };
           </script>" >> report.html
           echo "<style>
             #yesterday { display: none; }
@@ -93,7 +102,7 @@ jobs:
             th { background-color: #f2f2f2; }
           </style>" >> report.html
 
-          # 今天的記錄
+          # 今天的記錄 (台灣時間今天 20:00 ~ 明天 20:00)
           echo "<div id='today'>" >> report.html
           echo "<h2>今天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
@@ -102,8 +111,8 @@ jobs:
 
           jq -r '
             sort_by(.run_started_at) | reverse | map(select(
-              (.run_started_at | fromdateiso8601 + (8*3600)) >= (now | floor - 86400 + (20*3600)) and
-              (.run_started_at | fromdateiso8601 + (8*3600)) < (now | floor + (20*3600))
+              (.run_started_at | fromdateiso8601 + (8*3600)) >= ((now | strftime("%Y-%m-%d") | fromdate + (20*3600))) and
+              (.run_started_at | fromdateiso8601 + (8*3600)) < (((now | strftime("%Y-%m-%d") | fromdate + 86400) + (20*3600)))
             ))[] |
             [
               "#\(.run_number)",
@@ -121,7 +130,7 @@ jobs:
 
           echo "</tbody></table></div>" >> report.html
 
-          # 昨天的記錄
+          # 昨天的記錄 (台灣時間昨天 20:00 ~ 今天 20:00)
           echo "<div id='yesterday'>" >> report.html
           echo "<h2>昨天的記錄</h2>" >> report.html
           echo "<table>" >> report.html
@@ -129,7 +138,10 @@ jobs:
           echo "<tbody>" >> report.html
 
           jq -r '
-            sort_by(.run_started_at) | reverse | map(select(.run_started_at | fromdateiso8601 + (8*3600) < (now | floor - 86400)))[] |
+            sort_by(.run_started_at) | reverse | map(select(
+              (.run_started_at | fromdateiso8601 + (8*3600)) >= (((now | strftime("%Y-%m-%d") | fromdate) - 86400 + (20*3600))) and
+              (.run_started_at | fromdateiso8601 + (8*3600)) < ((now | strftime("%Y-%m-%d") | fromdate + (20*3600)))
+            ))[] |
             [
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
