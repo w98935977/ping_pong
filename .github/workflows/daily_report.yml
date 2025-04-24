@@ -20,21 +20,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPORT_PAT }}
         run: |
-          TODAY=$(date -u +"%Y-%m-%d")
-          echo "🔍 Fetching runs for: $TODAY (UTC)"
+          # 計算昨天和今天的日期（台灣時間）
+          YESTERDAY=$(date -u -d "yesterday +8 hours" +"%Y-%m-%d")
+          TODAY=$(date -u -d "today +8 hours" +"%Y-%m-%d")
+          echo "🔍 Fetching runs from: $YESTERDAY 20:00 to $TODAY 20:00 (台灣時間)"
 
-          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/workflows/157651133/runs?created=$TODAY&per_page=100"
-          
-          # 添加詳細錯誤日誌
-          curl -v -s -f \
+          # API 請求 URL，抓取昨天晚上 20:00 到今天晚上 20:00 的記錄
+          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/workflows/157651133/runs?per_page=100"
+
+          # 初始化空的 JSON 文件
+          echo '{"workflow_runs":[]}' > runs.json
+
+          # 抓取昨天的記錄
+          curl -s -f \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$API_URL" > runs.json 2> curl-debug.log
+            "$API_URL&created=$YESTERDAY" | jq '.workflow_runs' > yesterday_runs.json
 
-          if [ $? -ne 0 ]; then
-            echo "::error::API Request Failed. Debug Info:"
-            cat curl-debug.log
+          # 抓取今天的記錄
+          curl -s -f \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$API_URL&created=$TODAY" | jq '.workflow_runs' > today_runs.json
+
+          # 合併昨天和今天的記錄
+          jq -s '.[0] + .[1]' yesterday_runs.json today_runs.json > runs.json
+
+          # 確認是否成功抓取
+          if [ "$(jq '.workflow_runs | length' runs.json)" -eq 0 ]; then
+            echo "::error::No workflow runs found for the specified time range."
             exit 1
           fi
 
