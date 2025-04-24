@@ -45,9 +45,9 @@ jobs:
           SUCCESS=$(jq '[.workflow_runs[] | select(.conclusion == "success")] | length' runs.json)
           FAIL=$(jq '[.workflow_runs[] | select(.conclusion == "failure")] | length' runs.json)
 
-          # 擷取時間段（轉換為台灣時間）
-          START_TIME=$(date -u -d "1 day ago +8 hours" +"%Y-%m-%d %H:%M")
-          END_TIME=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")
+          # 固定擷取時間段（台灣時間晚上 20:00 為分界）
+          START_TIME=$(date -u -d "yesterday 12:00" +"%Y-%m-%d 20:00")
+          END_TIME=$(date -u -d "today 12:00" +"%Y-%m-%d 20:00")
 
           # 報告標題與統計摘要
           echo "<h1>📊 Ping 執行報告 - $(date -u -d "+8 hours" +"%Y-%m-%d")</h1>" > report.html
