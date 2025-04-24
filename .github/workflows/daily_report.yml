@@ -53,14 +53,16 @@ jobs:
           echo "# 📊 Ping 執行報告 - $(date -u +"%Y-%m-%d")" > report.md
           echo "擷取時間段：${START_TIME} 至 ${END_TIME} (UTC)" >> report.md
           echo "" >> report.md
-          echo "**成功：${SUCCESS} 次**" >> report.md
-          echo "**失敗：${FAIL} 次**" >> report.md
-          echo "**總執行：${TOTAL} 次**" >> report.md
+          echo "**成功：${SUCCESS} 次**  " >> report.md
+          echo "**失敗：${FAIL} 次**  " >> report.md
+          echo "**總執行：${TOTAL} 次**  " >> report.md
           echo "" >> report.md
 
           # 完整記錄
           echo "### 查看完整記錄 (共 ${TOTAL} 筆)" >> report.md
           echo "" >> report.md
+          echo "| 編號 | 時間 | 狀態 |" >> report.md
+          echo "|------|------|------|" >> report.md
 
           jq -r '
             .workflow_runs[] |
@@ -68,17 +70,13 @@ jobs:
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%H:%M")),
               (if .conclusion == "success" then "🟢 成功" else "🔴 失敗" end),
-              (
-                ((.updated_at | fromdateiso8601) - (.run_started_at | fromdateiso8601)) |
-                if . >= 60 then "\((. /60)|floor) 分" else "\(.) 秒" end
-              ),
-              (if .conclusion == "failure" then "連結)" else "" end)
+              (if .conclusion == "failure" then "[連結](\(.html_url))" else "" end)
             ] | @tsv
-          ' runs.json | while IFS=$'\t' read -r run_number time status duration link; do
+          ' runs.json | while IFS=$'\t' read -r run_number time status link; do
             if [ -n "$link" ]; then
-              echo "- ${run_number} | ${time} | ${status} | ${duration} | ${link}" >> report.md
+              echo "| ${run_number} | ${time} | ${status} ${link} |" >> report.md
             else
-              echo "- ${run_number} | ${time} | ${status} | ${duration}" >> report.md
+              echo "| ${run_number} | ${time} | ${status} |" >> report.md
             fi
           done
 
