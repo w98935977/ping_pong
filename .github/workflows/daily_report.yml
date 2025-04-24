@@ -94,12 +94,12 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
-          # 手機友好郵件模板
-          BODY=$(sed -e 's/🟢/<span style="color:#2ecc71">●<\/span>/g' \
-                     -e 's/🔴/<span style="color:#e74c3c">●<\/span>/g' \
-                     -e 's/# \(.*\)/<h2 style="color:#34495e">\1<\/h2>/g' \
-                     -e 's/### \(.*\)/<h3 style="color:#2c3e50">\1<\/h3>/g' \
-                     -e 's/|\(.*\)|\(.*\)|\(.*\)|\(.*\)|/<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px;border-bottom:1px solid #eee"><div>\1<\/div><div>\2<\/div><div>\3<\/div><div>\4<\/div><\/div>/g' \
+          # 修正統計數據
+          BODY=$(sed -e 's/🟢/<span style="color:#2ecc71;font-weight:bold;">●<\/span>/g' \
+                     -e 's/🔴/<span style="color:#e74c3c;font-weight:bold;">●<\/span>/g' \
+                     -e 's/# \(.*\)/<h2 style="color:#34495e; font-size:20px; margin-bottom:8px;">\1<\/h2>/g' \
+                     -e 's/### \(.*\)/<h3 style="color:#2c3e50; font-size:16px; margin-bottom:6px;">\1<\/h3>/g' \
+                     -e 's/|\(.*\)|\(.*\)|\(.*\)|\(.*\)|/<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;"><span>\1<\/span><span>\2<\/span><span>\3<\/span><span>\4<\/span><\/div>/g' \
                      report.md)
 
           {
@@ -111,7 +111,9 @@ jobs:
             echo "<!DOCTYPE html>"
             echo "<html>"
             echo "<head><meta name='viewport' content='width=device-width, initial-scale=1'></head>"
-            echo "<body style='font-family:-apple-system, BlinkMacSystemFont, sans-serif; max-width:600px; margin:0 auto; padding:16px;'>"
+            echo "<body style='font-family:-apple-system, BlinkMacSystemFont, sans-serif; max-width:600px; margin:0 auto; padding:16px; line-height:1.6;'>"
+            echo "<div style='background:#f9f9f9; padding:16px; border-radius:8px;'>"
             echo "$BODY"
+            echo "</div>"
             echo "</body></html>"
           } | msmtp -t
