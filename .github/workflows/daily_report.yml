@@ -50,19 +50,23 @@ jobs:
           END_TIME=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")
 
           # 報告標題與統計摘要
-          echo "# 📊 Ping 執行報告 - $(date -u -d "+8 hours" +"%Y-%m-%d")" > report.md
-          echo "擷取時間段：${START_TIME} 至 ${END_TIME} (台灣時間)" >> report.md
-          echo "" >> report.md
-          echo "**成功：${SUCCESS} 次**  " >> report.md
-          echo "**失敗：${FAIL} 次**  " >> report.md
-          echo "**總執行：${TOTAL} 次**  " >> report.md
-          echo "" >> report.md
+          echo "<h1>📊 Ping 執行報告 - $(date -u -d "+8 hours" +"%Y-%m-%d")</h1>" > report.html
+          echo "<p>擷取時間段：${START_TIME} 至 ${END_TIME} (台灣時間)</p>" >> report.html
+          echo "<p><strong>成功：${SUCCESS} 次</strong></p>" >> report.html
+          echo "<p><strong>失敗：${FAIL} 次</strong></p>" >> report.html
+          echo "<p><strong>總執行：${TOTAL} 次</strong></p>" >> report.html
 
           # 完整記錄
-          echo "### 查看完整記錄 (共 ${TOTAL} 筆)" >> report.md
-          echo "" >> report.md
-          echo "| 編號 | 時間 (台灣時間) | 狀態 |" >> report.md
-          echo "|------|-----------------|------|" >> report.md
+          echo "<h2>查看完整記錄 (共 ${TOTAL} 筆)</h2>" >> report.html
+          echo "<table style='width:100%; border-collapse:collapse; text-align:left; font-family:Arial, sans-serif;'>" >> report.html
+          echo "<thead>" >> report.html
+          echo "<tr style='background-color:#f2f2f2;'>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>編號</th>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>時間 (台灣時間)</th>" >> report.html
+          echo "<th style='padding:8px; border:1px solid #ddd;'>狀態</th>" >> report.html
+          echo "</tr>" >> report.html
+          echo "</thead>" >> report.html
+          echo "<tbody>" >> report.html
 
           jq -r '
             .workflow_runs[] |
@@ -70,15 +74,18 @@ jobs:
               "#\(.run_number)",
               (.run_started_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 + (8*3600) | strftime("%Y-%m-%d %H:%M")),
               (if .conclusion == "success" then "🟢 成功" else "🔴 失敗" end),
-              (if .conclusion == "failure" then "[連結](\(.html_url))" else "" end)
+              (if .conclusion == "failure" then "<a href=\"\(.html_url)\" style=\"color:#e74c3c;\">連結</a>" else "" end)
             ] | @tsv
           ' runs.json | while IFS=$'\t' read -r run_number time status link; do
-            if [ -n "$link" ]; then
-              echo "| ${run_number} | ${time} | ${status} ${link} |" >> report.md
-            else
-              echo "| ${run_number} | ${time} | ${status} |" >> report.md
-            fi
+            echo "<tr>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${run_number}</td>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${time}</td>" >> report.html
+            echo "<td style='padding:8px; border:1px solid #ddd;'>${status} ${link}</td>" >> report.html
+            echo "</tr>" >> report.html
           done
+
+          echo "</tbody>" >> report.html
+          echo "</table>" >> report.html
 
       - name: Send email
         env:
